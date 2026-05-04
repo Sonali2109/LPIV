@@ -1,0 +1,53 @@
+#include <iostream>
+#include <omp.h>
+#include <iomanip> // For setting precision
+
+using namespace std;
+
+int main() {
+    int n;
+    cout << "Enter number of elements: ";
+    cin >> n;
+
+    // Using a dynamic array or larger limit for safety
+    int arr[1000];
+    cout << "Enter elements:\n";
+    for(int i = 0; i < n; i++)
+        cin >> arr[i];
+
+    int min_val = arr[0];
+    int max_val = arr[0];
+    int sum = 0;
+
+    // --- Start Timing ---
+    double start_time = omp_get_wtime();
+
+    // Parallel Reduction
+    #pragma omp parallel for reduction(min:min_val) reduction(max:max_val) reduction(+:sum)
+    for(int i = 0; i < n; i++) {
+        if(arr[i] < min_val) min_val = arr[i];
+        if(arr[i] > max_val) max_val = arr[i];
+        sum += arr[i];
+    }
+
+    // --- End Timing ---
+    double end_time = omp_get_wtime();
+
+    double avg = (double)sum / n;
+
+    cout << "\n--- Results ---";
+    cout << "\nMinimum: " << min_val;
+    cout << "\nMaximum: " << max_val;
+    cout << "\nSum: " << sum;
+    cout << "\nAverage: " << avg;
+    
+    // Display execution time
+    cout << fixed << setprecision(6); 
+    cout << "\n\nExecution Time: " << (end_time - start_time) << " seconds" << endl;
+
+    return 0;
+}
+
+/*
+Time Complexity (TC)Sequential: $O(n)$ — You must visit every element once.Parallel: $O(\frac{n}{P} + \log P)$Each of the $P$ processors handles $n/P$ elements. The results are then combined in a tree-like fashion, which takes $\log P$ steps.Space Complexity (SC)$O(P)$: OpenMP creates a private copy of the reduction variable for each thread. Since $P$ is usually a small constant (like 4, 8, or 16), this is essentially $O(1)$ relative to the input size $n$.
+*/

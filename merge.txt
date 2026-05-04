@@ -1,0 +1,106 @@
+#include <iostream>
+#include <vector>
+#include <omp.h>
+#include <iomanip>
+
+using namespace std;
+
+// Function to merge two sorted halves
+void merge(vector<int>& arr, int l, int m, int r) {
+    int n1 = m - l + 1;
+    int n2 = r - m;
+
+    vector<int> L(n1), R(n2);
+
+    for (int i = 0; i < n1; i++) L[i] = arr[l + i];
+    for (int j = 0; j < n2; j++) R[j] = arr[m + 1 + j];
+
+    int i = 0, j = 0, k = l;
+    while (i < n1 && j < n2) {
+        if (L[i] <= R[j]) arr[k++] = L[i++];
+        else arr[k++] = R[j++];
+    }
+
+    while (i < n1) arr[k++] = L[i++];
+    while (j < n2) arr[k++] = R[j++];
+}
+
+// Sequential Merge Sort
+void sequentialMergeSort(vector<int>& arr, int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+        sequentialMergeSort(arr, l, m);
+        sequentialMergeSort(arr, m + 1, r);
+        merge(arr, l, m, r);
+    }
+}
+
+// Parallel Merge Sort using OpenMP Tasks
+void parallelMergeSort(vector<int>& arr, int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+
+        // Cut-off threshold to prevent task creation overhead for small arrays
+        if (r - l < 1000) {
+            sequentialMergeSort(arr, l, r);
+        } else {
+            #pragma omp task shared(arr)
+            parallelMergeSort(arr, l, m);
+
+            #pragma omp task shared(arr)
+            parallelMergeSort(arr, m + 1, r);
+
+            #pragma omp taskwait
+            merge(arr, l, m, r);
+        }
+    }
+}
+
+int main() {
+    int n;
+    cout << "Enter number of elements: ";
+    cin >> n;
+
+    if (n <= 0) {
+        cout << "Invalid array size." << endl;
+        return 1;
+    }
+
+    vector<int> arr1(n);
+    cout << "Enter " << n << " elements:" << endl;
+    for (int i = 0; i < n; i++) {
+        cin >> arr1[i];
+    }
+
+    // Create a copy for parallel sorting to ensure a fair comparison
+    vector<int> arr2 = arr1;
+
+    cout << fixed << setprecision(6);
+
+    // --- Sequential Measurement ---
+    double start = omp_get_wtime();
+    sequentialMergeSort(arr1, 0, n - 1);
+    double end = omp_get_wtime();
+    
+    cout << "\nSorted Array (Sequential): ";
+    for(int i = 0; i < n; i++) cout << arr1[i] << " ";
+    cout << "\nSequential Time: " << (end - start) << " seconds" << endl;
+
+    // --- Parallel Measurement ---
+    start = omp_get_wtime();
+    #pragma omp parallel
+    {
+        #pragma omp single
+        parallelMergeSort(arr2, 0, n - 1);
+    }
+    end = omp_get_wtime();
+    
+    cout << "\nSorted Array (Parallel): ";
+    for(int i = 0; i < n; i++) cout << arr2[i] << " ";
+    cout << "\nParallel Time:   " << (end - start) << " seconds" << endl;
+
+    return 0;
+}
+
+/*Time Complexity (TC)Sequential: $O(n \log n)$Parallel: $O(\frac{n \log n}{P})$ (where $P$ is the number of cores).Note: The merge step is still sequential in this implementation, but the divide-and-conquer tree is explored in parallel.Space Complexity (SC)$O(n)$: Merge sort requires temporary arrays to store the halves during the merge process. Additional Space: $O(\log n)$ stack space for recursion, plus a small amount of overhead for the OpenMP task queue.
+*/

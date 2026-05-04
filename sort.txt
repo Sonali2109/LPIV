@@ -1,0 +1,71 @@
+#include <iostream>
+#include <vector>
+#include <omp.h>
+#include <algorithm>
+#include <iomanip>
+
+using namespace std;
+
+// Sequential Bubble Sort
+void sequentialBubbleSort(vector<int>& arr, int n) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                swap(arr[j], arr[j + 1]);
+            }
+        }
+    }
+}
+
+// Parallel Bubble Sort (Odd-Even Transposition)
+void parallelBubbleSort(vector<int>& arr, int n) {
+    for (int i = 0; i < n; i++) {
+        if (i % 2 == 0) { // Even phase
+            #pragma omp parallel for
+            for (int j = 0; j < n - 1; j += 2) {
+                if (arr[j] > arr[j + 1]) {
+                    swap(arr[j], arr[j + 1]);
+                }
+            }
+        } else { // Odd phase
+            #pragma omp parallel for
+            for (int j = 1; j < n - 1; j += 2) {
+                if (arr[j] > arr[j + 1]) {
+                    swap(arr[j], arr[j + 1]);
+                }
+            }
+        }
+    }
+}
+
+int main() {
+    int n;
+    cout << "Enter number of elements: ";
+    cin >> n;
+
+    vector<int> arr1(n), arr2(n);
+    for (int i = 0; i < n; i++) {
+        int val = rand() % 1000;
+        arr1[i] = val;
+        arr2[i] = val;
+    }
+
+    cout << fixed << setprecision(6);
+
+    // Measure Sequential
+    double start = omp_get_wtime();
+    sequentialBubbleSort(arr1, n);
+    double end = omp_get_wtime();
+    cout << "Sequential Time: " << (end - start) << " seconds" << endl;
+
+    // Measure Parallel
+    start = omp_get_wtime();
+    parallelBubbleSort(arr2, n);
+    end = omp_get_wtime();
+    cout << "Parallel Time:   " << (end - start) << " seconds" << endl;
+
+    return 0;
+}
+
+/* Time Complexity (TC)Sequential: $O(n^2)$Parallel (Work Complexity): $O(n^2)$ — The total number of comparisons across all threads remains the same.Parallel (Step Complexity): $O(n)$ — If you have $n/2$ processors, each phase (odd/even) takes $O(1)$ time. Since there are $n$ phases to guarantee a sorted list, the total time is proportional to $n$.Space Complexity (SC)$O(n)$: You only need space to store the array itself. The additional space for thread management is negligible (constant per thread).
+*/
